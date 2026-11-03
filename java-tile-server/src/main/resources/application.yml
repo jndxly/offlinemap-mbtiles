@@ -1,0 +1,56 @@
+server:
+  port: 8080
+  # 只压缩 JSON/文本：官方边界 GeoJSON 往往较大，需要压缩；
+  # 瓦片响应（application/vnd.mapbox-vector-tile）不在列表内，不会被二次压缩
+  compression:
+    enabled: true
+    min-response-size: 1024
+    mime-types: application/json,application/javascript,text/html,text/css,text/plain
+
+spring:
+  application:
+    name: mbtiles-tile-server
+  mvc:
+    problemdetails:
+      enabled: true
+  # 数据源由 MbtilesRegistry 自行管理，不需要 Boot 的 SQL 初始化
+  sql:
+    init:
+      mode: never
+
+logging:
+  level:
+    com.example.mbtiles: INFO
+
+mbtiles:
+  # 每个数据集的连接池大小
+  pool-size: 4
+  # 首选数据集没有该瓦片时，是否继续尝试其它候选数据集（回退）
+  fallback-enabled: true
+  # 路由结果缓存条数（z/x/y -> 候选数据集）
+  route-cache-size: 50000
+  # 瓦片小于该字节数视为数据过稀疏，继续尝试其它数据集并取更完整的一份
+  min-tile-bytes: 1024
+  # 区域库叠加：其图层会克隆一份绘制在上层，补齐全国库缺失的区域（台湾等）
+  overlay-dataset: taiwan
+  # 官方行政边界 GeoJSON 目录（留空则用 classpath:static/boundary）
+  # 例：D:/AI/map_mbtiles/standard-2020，目录下需有 national/province/county-boundary.json 与 province-areas.json
+  boundary-dir: ${BOUNDARY_DIR:}
+  # 数据集列表：priority 数值越小越优先（覆盖范围相同时用它打破平局）
+  datasets:
+    - name: china
+      label: 中国
+      path: ${CHINA_MBTILES:D:/AI/map_mbtiles/china-261001.mbtiles}
+      priority: 10
+    - name: taiwan
+      label: 台湾
+      path: ${TAIWAN_MBTILES:D:/AI/map_mbtiles/taiwan-261001.mbtiles}
+      priority: 5
+  glyphs:
+    # 本地字形 PBF 根目录（按序查找；项目自带 NotoSansRegular / NotoSansBold）
+    local-dirs:
+      - classpath:/style/fonts/
+      - classpath:/static/fonts/
+    # 本地没有时，是否代理上游字体服务（离线环境可关闭）
+    proxy-enabled: true
+    upstream: https://fonts.openmaptiles.org
